@@ -2,6 +2,9 @@
 
 [![CI](https://github.com/mildfriend3-blip/aegis/actions/workflows/ci.yml/badge.svg)](https://github.com/mildfriend3-blip/aegis/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Live site](https://img.shields.io/badge/live%20site-visit-5980A6)](https://mildfriend3-blip.github.io/aegis/)
+
+**Live site:** <https://mildfriend3-blip.github.io/aegis/> · [talk deck](https://mildfriend3-blip.github.io/aegis/AEGIS-talk.html) · [writeup](https://mildfriend3-blip.github.io/aegis/AEGIS-writeup.pdf)
 
 **A**n **E**valuation-and-defense framework for prompt-injection attacks on tool-using LLM agents.
 
