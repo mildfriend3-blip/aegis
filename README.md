@@ -1,6 +1,7 @@
 # AEGIS
 
 [![CI](https://github.com/mildfriend3-blip/aegis/actions/workflows/ci.yml/badge.svg)](https://github.com/mildfriend3-blip/aegis/actions/workflows/ci.yml)
+[![Benchmark](https://github.com/mildfriend3-blip/aegis/actions/workflows/benchmark.yml/badge.svg)](https://github.com/mildfriend3-blip/aegis/actions/workflows/benchmark.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Live site](https://img.shields.io/badge/live%20site-visit-5980A6)](https://mildfriend3-blip.github.io/aegis/)
 

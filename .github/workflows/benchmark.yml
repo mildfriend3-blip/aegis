@@ -1,0 +1,51 @@
+name: Benchmark
+
+# Guards the headline numbers. AEGIS is deterministic, so a fresh run must
+# reproduce the committed results/report.md byte for byte. If the attack
+# catalogue, the defences or the agent change the outcome, this fails and
+# shows the diff, so the numbers in the README can never drift silently.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: "0 3 * * 1"   # every Monday, 03:00 UTC — a canary for drift
+  workflow_dispatch:
+
+jobs:
+  reproducibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Regenerate the benchmark
+        run: python -m aegis.cli run --out results
+
+      - name: Verify the committed results are reproducible
+        run: |
+          if ! git diff --quiet -- results/report.md; then
+            echo "::error::results/report.md changed — the benchmark is no longer reproducible. Review the diff below and update the README tables if the change is intended."
+            git --no-pager diff -- results/report.md
+            exit 1
+          fi
+          echo "Results match the committed report — reproducible."
+
+      - name: Upload the benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-results
+          path: |
+            results/report.md
+            results/results.json
+          if-no-files-found: error
