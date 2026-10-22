@@ -14,7 +14,7 @@ quantifies how often each attack achieves its forbidden effect (**Attack Success
 and measures how much each defensive layer reduces that rate — *and at what cost to
 legitimate utility*. It ships with a deterministic offline agent, a four-layer defense
 stack, 17 attacks across 9 categories, an adaptive attacker, an always-on guard, a CLI,
-and a 61-test suite.
+and a 64-test suite.
 
 ```
 $ aegis run
@@ -281,6 +281,34 @@ other path to it. And free tiers may use your traffic for training (Gemini's exp
 does), so do not point them at real data; AEGIS's payloads are synthetic, which is exactly
 why it is safe to run this way.
 
+### Real-model validation
+
+Run against **Google Gemini 2.5 Flash** through its OpenAI-compatible endpoint, 22 Oct
+2026, on the free tier (paced to stay inside the rate limit):
+
+```
+AEGIS guarded agent - 17 attack variants, model: gemini-2.5-flash
+  effects achieved:     0
+  prompts refused:      9
+  tool calls proposed:  7
+  tool calls blocked:   1
+  residual:             none - the guard held
+```
+
+Zero effects achieved — but read the mechanism, because it differs from the simulation.
+The offline agent is deliberately gullible: it follows every injected instruction, so in
+the simulation the guard does all the work. A real model refused most injections on its
+own. It proposed only **7** tool calls across the 17 attacks, where the mock proposes 22,
+and the guard blocked just one of them. The one that mattered was `sql_paraphrase`, where
+the model *did* propose a destructive statement and the policy refused it.
+
+So the honest conclusion is not "the model is safe". It is that **the guard is the part
+that does not depend on the model's mood.** Against a model that resists, it is a
+backstop; against a model that complies, it is the only thing between the injection and
+the effect. The simulation measures that second case, which is exactly why it is the
+right thing to benchmark against — a live model's resistance is a variable, and a defence
+that relies on it is not a defence.
+
 ## Architecture
 
 ```
@@ -383,7 +411,7 @@ aegis/
     metrics.py    ASR / utility aggregation
     report.py     Markdown + JSON report generation
     cli.py        command-line entry point
-  tests/          61 tests
+  tests/          64 tests
   docs/           technical writeup (PDF) + its build script
   results/        generated benchmark output
 ```

@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 
 from ..types import AgentRun, ToolCall
@@ -70,6 +72,32 @@ class OpenAIAgent(AgentTarget):
         return [{"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": content}]
 
+    def _post(self, body: bytes, attempts: int = 6) -> dict:
+        """POST with exponential backoff.
+
+        A live model is rate-limited, and a 429 is a normal condition on a free
+        tier rather than a failure -- so retry instead of crashing a run that is
+        already half done. Honours ``Retry-After`` when the provider sends it.
+        """
+        delay = 2.0
+        for attempt in range(attempts):
+            req = urllib.request.Request(
+                f"{self.base_url}/chat/completions", data=body,
+                headers={"Content-Type": "application/json",
+                         "Authorization": f"Bearer {self.api_key}"})
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    return json.loads(resp.read().decode())
+            except urllib.error.HTTPError as exc:
+                if exc.code in (429, 500, 502, 503, 504) and attempt < attempts - 1:
+                    header = (exc.headers.get("Retry-After") if exc.headers else None) or ""
+                    wait = float(header) if header.replace(".", "", 1).isdigit() else delay
+                    time.sleep(min(wait, 60.0))
+                    delay *= 2
+                    continue
+                raise
+        raise RuntimeError("unreachable")
+
     def run(self, task: str, documents: list[str]) -> AgentRun:
         if not self.api_key:
             raise RuntimeError(
@@ -80,12 +108,7 @@ class OpenAIAgent(AgentTarget):
             "tools": _TOOLS,
             "temperature": 0,
         }).encode()
-        req = urllib.request.Request(
-            f"{self.base_url}/chat/completions", data=body,
-            headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self.api_key}"})
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            data = json.loads(resp.read().decode())
+        data = self._post(body)
         msg = data["choices"][0]["message"]
         calls: list[ToolCall] = []
         for tc in msg.get("tool_calls") or []:

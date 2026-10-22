@@ -89,9 +89,13 @@ def _run_guarded(args) -> int:
             from .attacks.mutations import mutations_for
             variants += [v for _tag, v in mutations_for(attack)]
 
+    import time
+
     achieved = refused = proposed = blocked = 0
     residuals = []
-    for variant in variants:
+    for index, variant in enumerate(variants):
+        if args.delay and index:
+            time.sleep(args.delay)          # stay inside a free tier's rate limit
         world = World()
         agent = GuardedAgent(inner=inner_factory(), decider=decider,
                              session=f"sess-{variant.id}"[:40])
@@ -233,6 +237,8 @@ def main(argv: list[str] | None = None) -> int:
     gd.add_argument("--target", default="mock", choices=["mock", "openai"],
                     help="the model under the guard (openai needs AEGIS_OPENAI_API_KEY)")
     gd.add_argument("--verbose", action="store_true", help="one line per variant")
+    gd.add_argument("--delay", type=float, default=0.0,
+                    help="seconds between model calls (pace a rate-limited live model)")
 
     args = parser.parse_args(argv)
 
