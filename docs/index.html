@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AEGIS — prompt-injection benchmark for tool-using LLM agents</title>
+  <meta name="description" content="AEGIS measures the attack success rate of prompt injection against a tool-using LLM agent, and the utility cost of each defence.">
+  <style>
+    :root { --paper:#F2F2F3; --surface:#E9E9EA; --ink:#1D1F20; --muted:#5D5D60; --faint:#7A7A7D;
+            --steel:#5980A6; --steel-deep:#416180; --field:#1D2D3D; --rule:rgba(29,31,32,0.16); }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink);
+           font-family:'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+           font-size:18px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+    .wrap { max-width:1080px; margin:0 auto; padding:0 40px; }
+    .cond { font-family:'Barlow Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+            font-weight:600; letter-spacing:-0.01em; }
+    .kicker { font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; font-weight:600;
+              font-size:14px; letter-spacing:0.14em; text-transform:uppercase; color:var(--steel); }
+    header { padding:64px 0 8px; }
+    h1 { font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; font-weight:600;
+         font-size:132px; line-height:0.92; margin:18px 0 0; letter-spacing:-0.02em; }
+    .lead { font-size:26px; line-height:1.4; color:var(--muted); max-width:760px; margin:22px 0 0; }
+    .lead b { color:var(--steel-deep); font-weight:600; }
+    .rule { height:1px; background:var(--rule); margin:44px 0; }
+    .figures { display:grid; grid-template-columns:repeat(4,1fr); gap:32px; }
+    .fig { border-top:2px solid var(--ink); padding-top:18px; }
+    .fig .n { font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; font-weight:600;
+              font-size:64px; line-height:0.95; font-variant-numeric:tabular-nums; }
+    .fig .l { margin-top:10px; font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+              font-weight:600; font-size:15px; letter-spacing:0.08em; text-transform:uppercase;
+              color:var(--steel); }
+    .fig .d { margin-top:6px; font-size:15px; color:var(--muted); }
+    h2 { font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; font-weight:600;
+         font-size:44px; line-height:1.05; margin:0 0 18px; letter-spacing:-0.01em; }
+    .cols { display:grid; grid-template-columns:1fr 1fr; gap:48px; }
+    p { margin:0 0 16px; }
+    .muted { color:var(--muted); }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:8px; }
+    .card { position:relative; border:1px solid var(--rule); padding:28px 26px 30px; display:block;
+            text-decoration:none; color:inherit; transition:background .15s ease; }
+    .card:hover { background:var(--surface); }
+    .card .t { font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif; font-weight:600;
+               font-size:26px; line-height:1.1; }
+    .card .s { margin-top:8px; font-size:15px; color:var(--muted); }
+    .card .go { margin-top:16px; font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+                font-weight:600; font-size:15px; letter-spacing:0.08em; text-transform:uppercase;
+                color:var(--steel); }
+    .cmd { background:var(--field); color:#F2F2F3; padding:20px 24px; font-family:ui-monospace,
+           SFMono-Regular, Menlo, Consolas, monospace; font-size:15px; line-height:1.8;
+           overflow-x:auto; white-space:pre; }
+    .cmd .c { color:#94BCE3; }
+    footer { margin-top:56px; border-top:1px solid var(--rule); padding:28px 0 64px;
+             font-size:15px; color:var(--faint); display:flex; justify-content:space-between;
+             gap:24px; flex-wrap:wrap; }
+    a { color:var(--steel-deep); }
+    @media (max-width:820px){ h1{font-size:88px} .figures{grid-template-columns:repeat(2,1fr)}
+      .cards{grid-template-columns:1fr} .cols{grid-template-columns:1fr;gap:24px} .wrap{padding:0 24px} }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">AI security · open source</div>
+    <h1>AEGIS</h1>
+    <p class="lead">Measuring what <b>prompt injection</b> actually costs a tool-using LLM agent — and what each defence costs back.</p>
+  </header>
+
+  <div class="rule"></div>
+
+  <div class="figures">
+    <div class="fig"><div class="n">17</div><div class="l">Attacks</div><div class="d">Across 9 categories.</div></div>
+    <div class="fig"><div class="n">8</div><div class="l">Configurations</div><div class="d">Four layers, composed.</div></div>
+    <div class="fig"><div class="n">100%</div><div class="l">Undefended</div><div class="d">Attack success rate.</div></div>
+    <div class="fig"><div class="n">0%</div><div class="l">Full stack</div><div class="d">Utility held at 100%.</div></div>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="cols">
+    <div>
+      <h2>What it is</h2>
+      <p class="muted">An LLM agent that can call tools turns a prompt injection from a party trick into a remote-execution class bug for natural language. A payload hidden in a document the agent is asked to summarise can redirect its email, HTTP or SQL calls.</p>
+      <p class="muted">AEGIS scores 17 attacks across 9 categories against a tool-using agent, and reports two numbers for every defence: the <b>attack success rate</b> it leaves, and the <b>legitimate-task utility</b> it preserves. An undefended agent falls to every attack; a four-layer stack drives that to zero with no loss of utility.</p>
+    </div>
+    <div>
+      <h2>Run it</h2>
+      <p class="muted">Offline, no server, no API key — one command regenerates every number.</p>
+      <div class="cmd"><span class="c">$</span> git clone https://github.com/mildfriend3-blip/aegis
+<span class="c">$</span> cd aegis
+<span class="c">$</span> pip install -e ".[dev]"
+<span class="c">$</span> aegis run
+<span class="c">$</span> pytest -q</div>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <h2>Explore</h2>
+  <div class="cards">
+    <a class="card" href="AEGIS-talk.html">
+      <div class="t">The talk</div>
+      <div class="s">A 14-slide conference talk — the threat, the benchmark, the results, what defenders should do.</div>
+      <div class="go">Open the deck →</div>
+    </a>
+    <a class="card" href="AEGIS-writeup.pdf">
+      <div class="t">The writeup</div>
+      <div class="s">A 4-page technical report: threat model, architecture, the full results matrix, limitations.</div>
+      <div class="go">Read the PDF →</div>
+    </a>
+    <a class="card" href="https://github.com/mildfriend3-blip/aegis">
+      <div class="t">The source</div>
+      <div class="s">The framework, the attack catalogue, the four defences and a 22-test suite — MIT licensed.</div>
+      <div class="go">View on GitHub →</div>
+    </a>
+  </div>
+
+  <footer>
+    <span>Mildfriend · B.Tech CSE (Cyber Security), Central University of Jammu</span>
+    <span>AEGIS v0.1.0 · MIT</span>
+  </footer>
+
+</div>
+</body>
+</html>
