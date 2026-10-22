@@ -9,7 +9,7 @@ description = "Evaluation-and-defense framework for prompt-injection attacks on 
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Your Name" }]
+authors = [{ name = "Mildfriend" }]
 keywords = ["llm-security", "prompt-injection", "ai-agents", "appsec", "benchmark"]
 dependencies = []
 

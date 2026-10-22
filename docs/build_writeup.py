@@ -112,7 +112,7 @@ def build():
     doc = SimpleDocTemplate(OUT, pagesize=LETTER, leftMargin=0.9 * inch,
                             rightMargin=0.9 * inch, topMargin=0.85 * inch,
                             bottomMargin=0.8 * inch,
-                            title="AEGIS - Technical Writeup", author="[Your Name]")
+                            title="AEGIS - Technical Writeup", author="Mildfriend")
     cw = doc.width
     S = []
 
@@ -135,7 +135,7 @@ def build():
     S.append(P("Measuring and Defeating Prompt-Injection Attacks on Tool-Using LLM Agents",
                subtitle))
     S.append(Spacer(1, 6))
-    S.append(P("[Your Name]  |  B.Tech Cyber Security, [Your College]  |  October 2026",
+    S.append(P("Mildfriend  |  B.Tech CSE (Cyber Security), Central University of Jammu  |  October 2026",
                meta))
     S.append(Spacer(1, 10))
 
