@@ -35,6 +35,8 @@ AEGIS makes the trade-off measurable. The central question it answers:
 17 attacks × 8 defence configurations. **ASR = Attack Success Rate (lower is better);
 utility = fraction of cases where the legitimate task still worked (higher is better).**
 
+![AEGIS results: attack success rate by defence](docs/results-table.png)
+
 | Defense | ASR | Utility |
 |---|---|---|
 | none | **100.0%** | 100.0% |
