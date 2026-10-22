@@ -1,6 +1,6 @@
 # AEGIS Benchmark Report
 
-Attacks evaluated: **17** per defense across **8** defense configurations (**136** total runs).
+Attacks evaluated: **17** per defense across **9** defense configurations (**153** total runs).
 
 ## 1. Overall: attack success vs. legitimate utility
 
@@ -14,6 +14,7 @@ Attacks evaluated: **17** per defense across **8** defense configurations (**136
 | sanitizer+tool-policy |  11.8% | 100.0% |
 | datamarking+tool-policy |  17.6% | 100.0% |
 | full |   0.0% | 100.0% |
+| hardened |   0.0% | 100.0% |
 
 ## 2. Attack Success Rate by defense x attack category
 
@@ -27,6 +28,7 @@ Attacks evaluated: **17** per defense across **8** defense configurations (**136
 | sanitizer+tool-policy |   0.0% |  33.3% |   0.0% |   0.0% |   0.0% |  50.0% |   0.0% |   0.0% |   0.0% |
 | datamarking+tool-policy |   0.0% |  33.3% |   0.0% |   0.0% |   0.0% | 100.0% |   0.0% |   0.0% |   0.0% |
 | full |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |
+| hardened |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |   0.0% |
 
 ## 3. Per-attack outcome: undefended vs. full stack
 

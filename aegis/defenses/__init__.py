@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 from .base import Defense, DefenseStack
-from .output_filter import OutputFilter
+from .output_filter import DecodingOutputFilter, OutputFilter
 from .policy import ToolPolicy
 from .sanitizer import InputSanitizer
 from .spotlighting import DataMarking
 
 __all__ = ["Defense", "DefenseStack", "InputSanitizer", "DataMarking",
-           "ToolPolicy", "OutputFilter", "build_defense", "DEFENSE_CONFIGS"]
+           "ToolPolicy", "OutputFilter", "DecodingOutputFilter",
+           "build_defense", "DEFENSE_CONFIGS"]
 
 # Individual layers plus meaningful combinations, so the benchmark can show both
 # each layer's standalone value and how layers cover one another's blind spots.
@@ -17,6 +18,7 @@ _LAYERS = {
     "datamarking": DataMarking,
     "tool-policy": ToolPolicy,
     "output-filter": OutputFilter,
+    "output-filter-decoding": DecodingOutputFilter,
 }
 
 DEFENSE_CONFIGS: dict[str, list[str]] = {
@@ -28,6 +30,9 @@ DEFENSE_CONFIGS: dict[str, list[str]] = {
     "sanitizer+tool-policy": ["sanitizer", "tool-policy"],
     "datamarking+tool-policy": ["datamarking", "tool-policy"],
     "full": ["sanitizer", "datamarking", "tool-policy", "output-filter"],
+    # the full stack with the hardened, decoding output filter in place of the
+    # literal-match one -- the answer to the adaptive attacker's encoding bypass
+    "hardened": ["sanitizer", "datamarking", "tool-policy", "output-filter-decoding"],
 }
 
 

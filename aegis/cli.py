@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import report
+from . import adaptive, report
 from .attacks import ATTACKS
 from .defenses import DEFENSE_CONFIGS
 from .harness import run_suite
@@ -51,6 +51,13 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("list", help="list attacks and defense configs")
 
+    ad = sub.add_parser("adaptive", help="run the adaptive attacker (searches for bypasses)")
+    ad.add_argument("--defenses", default="none,full,hardened",
+                    help="comma-separated defense configs")
+    ad.add_argument("--attacks", default="all",
+                    help="'all', or comma-separated attack ids/categories")
+    ad.add_argument("--out", default="results", help="output directory")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "list":
@@ -58,6 +65,15 @@ def main(argv: list[str] | None = None) -> int:
         print("\nAttacks:")
         for a in ATTACKS:
             print(f"  {a.id:22s} [{a.category:14s}] -> {a.objective}")
+        return 0
+
+    if args.cmd == "adaptive":
+        defenses = [d.strip() for d in args.defenses.split(",") if d.strip()]
+        attacks = _select_attacks(args.attacks)
+        recs = adaptive.run_adaptive(attacks, defenses)
+        info = adaptive.write_results(recs, args.out)
+        print(adaptive.markdown(recs))
+        print(f"\nWrote {info['markdown']} and {info['json']}")
         return 0
 
     defenses = [d.strip() for d in args.defenses.split(",") if d.strip()]

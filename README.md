@@ -13,7 +13,7 @@ AEGIS runs a catalogue of realistic prompt-injection attacks against a tool-usin
 quantifies how often each attack achieves its forbidden effect (**Attack Success Rate**),
 and measures how much each defensive layer reduces that rate — *and at what cost to
 legitimate utility*. It ships with a deterministic offline agent, a four-layer defense
-stack, 17 attacks across 9 categories, a CLI, and a 22-test suite.
+stack, 17 attacks across 9 categories, an adaptive attacker, a CLI, and a 32-test suite.
 
 ```
 $ aegis run
@@ -51,6 +51,7 @@ utility = fraction of cases where the legitimate task still worked (higher is be
 | sanitizer + tool-policy | 11.8% | 100.0% |
 | datamarking + tool-policy | 17.6% | 100.0% |
 | **full stack** | **0.0%** | **100.0%** |
+| **hardened** | **0.0%** | **100.0%** |
 
 An undefended agent falls to **every** attack. A four-layer stack drives ASR to **0%**
 without sacrificing the legitimate task — but the single-layer rows show why layering is
@@ -66,11 +67,40 @@ required: each layer has a blind spot the others cover.
 | tool-policy | **0%** | 33% | **0%** | **0%** | **0%** | 100% | **0%** | **0%** | **0%** |
 | output-filter | 100% | 67% | 100% | 100% | 100% | **0%** | 100% | 100% | 100% |
 | full | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
+| hardened | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% | 0% |
 
 Read the blind spots off the matrix: input sanitisation catches *known phrasings* but
 misses **encoded** and **paraphrased** payloads; datamarking only helps **indirect**
 (document-borne) injection; the tool-call policy handles **actions** but is blind to
 **response leakage**, which only the output filter catches.
+
+## Adaptive attacks — the honest counter to 0%
+
+A fixed catalogue can read 0% while an attacker who is allowed to *search* still gets
+through. `aegis adaptive` mutates each attack — encode the whole payload, paraphrase a
+trigger verb, frame it as legitimate, or demand the answer in an encoded form — and
+composes up to two moves, reporting whether any variant still lands.
+
+| Defence | Static ASR | Adaptive bypass rate |
+|---|---|---|
+| none | 100.0% | 100.0% |
+| full stack | 0.0% | **17.6%** |
+| hardened | 0.0% | **0.0%** |
+
+Every adaptive bypass is **response leakage**, and every one works the same way: ask the
+model to return the secret **base64-encoded**, and the literal-match output filter never
+sees it. The effect-level tool-call policy resists adaptation completely — no mutation
+gets protected data out through email or HTTP — and swapping in the hardened,
+**decoding** output filter (`output-filter-decoding`, the `hardened` config) closes the
+leak.
+
+The lesson is the method, not the number: **a defence is only as good as the attacker
+you tested it against.** The static table above is a floor; this is the ceiling measured
+so far.
+
+```bash
+aegis adaptive --defenses none,full,hardened
+```
 
 ## Architecture
 
@@ -111,7 +141,7 @@ pip install -e ".[dev]"
 aegis list                 # show attacks and defence configs
 aegis run                  # full benchmark -> prints tables, writes results/
 aegis run --defenses none,tool-policy,full --out results
-pytest -q                  # 22 tests
+pytest -q                  # 32 tests
 ```
 
 > **If `aegis` or `pytest` is not found after install**, pip placed the launcher scripts in a folder that is not on your `PATH` (the install prints a warning naming it, e.g. `...\AppData\Roaming\Python\Python312\Scripts`). Two fixes: run the module form — `python -m aegis.cli run` and `python -m pytest -q` — or add that folder to `PATH`. Installing into a virtual environment (`python -m venv .venv`, then activate it) avoids the problem entirely.
@@ -131,7 +161,7 @@ aegis run --target openai --defenses none,full
 | **sanitizer** | input | Redacts sentences matching known injection signatures | paraphrased & encoded payloads |
 | **datamarking** | input | Marks untrusted documents so instructions inside are treated as data | direct (user-turn) injection |
 | **tool-policy** | action | Refuses tool calls that break policy (off-domain email, non-allow-listed host, destructive SQL, secret exfil) | response leakage; novel tools |
-| **output-filter** | output | Redacts the protected secret from the final answer | anything that isn't a response leak |
+| **output-filter** | output | Redacts the protected secret from the final answer | encoded leaks; anything that isn't a response leak |
 
 ## Attack taxonomy
 
@@ -161,14 +191,15 @@ exfiltration · multi-turn social engineering. Each attack targets one of four o
 aegis/
   aegis/
     targets/      agent under test: MockAgent (offline) + OpenAIAgent adapter
-    attacks/      attack catalogue (17 cases, 9 categories)
-    defenses/     four composable layers + the registry of configs
+    attacks/      attack catalogue (17 cases) + adaptive mutation operators
+    defenses/     four composable layers (+ a hardened output filter)
+    adaptive.py   the adaptive attacker: searches the mutation space for bypasses
     world.py      simulated environment; records the effects success is scored on
     harness.py    the evaluation loop
     metrics.py    ASR / utility aggregation
     report.py     Markdown + JSON report generation
     cli.py        command-line entry point
-  tests/          22 tests
+  tests/          32 tests
   docs/           technical writeup (PDF) + its build script
   results/        generated benchmark output
 ```

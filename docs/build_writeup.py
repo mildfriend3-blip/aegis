@@ -155,10 +155,14 @@ def build():
         "wild is vague and unquantified. AEGIS makes the trade-off measurable. Against a catalogue of 17 "
         "attacks across 9 categories, an undefended agent falls to <b>100%</b> of them. A four-layer defence "
         "stack drives the attack success rate to <b>0%</b> while preserving <b>100%</b> of legitimate-task "
-        "utility. No single layer is sufficient, and the benchmark shows exactly where each one fails.", body))
+        "utility. No single layer is sufficient, and the benchmark shows exactly where each one fails. An "
+        "adaptive attacker that mutates and composes attacks still gets through the full stack at <b>17.6%</b> "
+        "- every bypass by encoding the leaked secret past a literal-match filter - and a hardened, decoding "
+        "filter closes it back to <b>0%</b>.", body))
     S.append(P(
         "The contribution is a reproducible harness: a deterministic offline agent, an effect-level definition "
-        "of attack success, four composable defence layers, a 22-test suite, and a CLI that regenerates every "
+        "of attack success, four composable defence layers, an adaptive attacker, a 32-test suite, and a CLI "
+        "that regenerates every "
         "number in this report.", body))
 
     # ---- threat model
@@ -214,15 +218,18 @@ def build():
          ["tool-policy", "action", "Refuses calls that break policy: off-domain email, non-allow-listed host, destructive SQL, secret exfil",
           "response leakage; unguarded tools"],
          ["output-filter", "output", "Redacts the protected secret from the final answer",
-          "anything that is not a response leak"]],
+          "encoded leaks; anything that is not a response leak"]],
         [0.15, 0.10, 0.45, 0.30], cw))
+    S.append(P(
+        "A hardened variant, <b>output-filter-decoding</b>, detects the secret in base64, hex, rot13 and "
+        "reversed form before redacting - the answer to the adaptive attacker's encoding bypass.", body))
     S.append(Spacer(1, 8))
 
     # ---- results
     S.append(P("Results", h1))
     S.append(P(
         "Attack Success Rate (ASR) is lower-is-better; utility is the fraction of cases where the legitimate "
-        "task still worked. 17 attacks, 8 defence configurations, 136 runs.", body))
+        "task still worked. 17 attacks, 9 defence configurations, 153 runs.", body))
     S.append(data_table(
         ["Defence", "ASR", "Utility"],
         [["none", "100.0%", "100.0%"],
@@ -232,7 +239,8 @@ def build():
          ["output-filter", "82.4%", "100.0%"],
          ["sanitizer + tool-policy", "11.8%", "100.0%"],
          ["datamarking + tool-policy", "17.6%", "100.0%"],
-         ["full stack", "0.0%", "100.0%"]],
+         ["full stack", "0.0%", "100.0%"],
+         ["hardened", "0.0%", "100.0%"]],
         [0.5, 0.25, 0.25], cw, align_center_from=1))
     S.append(Spacer(1, 8))
     S.append(P(
@@ -245,11 +253,33 @@ def build():
          ["datamarking", "100", "100", "100", "100", "0", "100", "100", "100", "100"],
          ["tool-policy", "0", "33", "0", "0", "0", "100", "0", "0", "0"],
          ["output-filter", "100", "67", "100", "100", "100", "0", "100", "100", "100"],
-         ["full stack", "0", "0", "0", "0", "0", "0", "0", "0", "0"]],
+         ["full stack", "0", "0", "0", "0", "0", "0", "0", "0", "0"],
+         ["hardened", "0", "0", "0", "0", "0", "0", "0", "0", "0"]],
         [0.19, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09], cw,
         align_center_from=1))
     S.append(Spacer(1, 4))
     S.append(P("ASR (%) by defence and attack category.", small))
+
+    # ---- adaptive attacks
+    S.append(P("Adaptive attacks", h1))
+    S.append(P(
+        "A fixed catalogue can read 0% while an attacker who is allowed to search still gets through. The "
+        "adaptive attacker mutates each attack - encoding the payload, paraphrasing a trigger verb, framing it "
+        "as legitimate, or asking for the answer in an encoded form - and composes up to two moves, reporting "
+        "whether any variant still lands.", body))
+    S.append(data_table(
+        ["Defence", "Static ASR", "Adaptive bypass rate"],
+        [["none", "100.0%", "100.0%"],
+         ["full stack", "0.0%", "17.6%"],
+         ["hardened", "0.0%", "0.0%"]],
+        [0.5, 0.25, 0.25], cw, align_center_from=1))
+    S.append(Spacer(1, 8))
+    S.append(P(
+        "Every adaptive bypass is response leakage, and every one works the same way: ask the model to return "
+        "the secret base64-encoded, and the literal-match output filter never sees it. The effect-level "
+        "tool-call policy resists adaptation completely - no mutation gets protected data out through email or "
+        "HTTP - and the hardened, decoding output filter closes the leak. The lesson is the method, not the "
+        "number: a defence is only as good as the attacker it was tested against.", body))
 
     # ---- findings
     S.append(P("Findings", h1))
@@ -271,29 +301,35 @@ def build():
         "no attack here. They are retained deliberately: a real policy is never complete, and a cheap input "
         "filter that never relies on the model is worth keeping against channels a policy cannot mediate. The "
         "test suite pins this finding so it cannot silently change.", body))
+    S.append(P(
+        "5. The static 0% is a floor, not immunity. Under an adaptive attacker that composes mutations, the "
+        "full stack falls to 17.6% - all of it response leakage defeated by encoding - and only the hardened, "
+        "decoding output filter restores zero. The benchmark's real contribution is the method: test the "
+        "defence against an attacker who searches.", body))
 
     # ---- limitations
     S.append(P("Limitations", h1))
     S.append(P(
         "The default agent is a deterministic simulation, chosen so results are reproducible and comparable; "
         "a real-model adapter is included to validate that the offline numbers track reality, but the "
-        "headline numbers here are from the simulation. The catalogue is fixed and non-adaptive - it does not "
-        "search for bypasses of the defences, so 0% is a statement about this catalogue, not a proof of "
-        "immunity. The tool-call policy assumes a complete allow-list; novel tools or a compromised "
-        "allow-listed destination would need new policy rules.", body))
+        "headline numbers here are from the simulation. The adaptive attacker searches a bounded mutation space "
+        "(four families, two composed moves); a deeper or smarter search would find more, so 0% is a measured "
+        "ceiling, not immunity. The tool-call policy assumes a complete allow-list; novel tools or a "
+        "compromised allow-listed destination would need new policy rules.", body))
 
     # ---- future work
     S.append(P("Future work", h1))
     S.append(P(
-        "Adaptive attacks that optimise against a chosen defence; a large-scale real-LLM run across several "
-        "models; per-tool risk scoring so the policy can be graded rather than binary; and automated payload "
-        "generation to grow the catalogue without hand-writing each case.", body))
+        "Deeper adaptive search, and one that optimises against a chosen defence rather than enumerating a "
+        "fixed mutation set; a large-scale real-LLM run across several models; per-tool risk scoring so the "
+        "policy can be graded rather than binary; and automated payload generation to grow the catalogue "
+        "without hand-writing each case.", body))
 
     # ---- reproducibility
     S.append(P("Reproducibility", h1))
     S.append(P(
         "Every figure in this report is regenerated by one command. The repository ships the agent, the "
-        "attack catalogue, the four defence layers, the evaluation harness, the CLI, and a 22-test suite; "
+        "attack catalogue, the four defence layers, the adaptive attacker, the CLI, and a 32-test suite; "
         "the offline agent needs no network and no API key.", body))
     S.append(P("pip install -e \".[dev]\"   |   aegis run   |   pytest -q", small))
 
