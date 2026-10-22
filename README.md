@@ -244,6 +244,43 @@ agent, so CI reproduces them with no key and no network. A live-model run is a
 different calls, and may refuse some attacks on its own. Run it and record what you get;
 do not assume the offline numbers transfer.
 
+### Getting a key (free options)
+
+The key comes from the provider, not from AEGIS. Any OpenAI-compatible endpoint works —
+point `AEGIS_OPENAI_BASE_URL` at it and name the model. These need no credit card:
+
+| Provider | Base URL | Free tier |
+|---|---|---|
+| **Ollama** (local, no key at all) | `http://localhost:11434/v1` | free forever, runs on your machine |
+| Google Gemini (AI Studio) | `https://generativelanguage.googleapis.com/v1beta/openai/` | free tier, no card |
+| Groq | `https://api.groq.com/openai/v1` | 30 RPM, ~1,000 requests/day, no card |
+| OpenRouter | `https://openrouter.ai/api/v1` | `:free` models, no card |
+| Mistral · Cohere · Cloudflare Workers AI | (see their docs) | free tiers, no card |
+
+Ollama needs no account at all — the key is a placeholder it ignores:
+
+```bash
+ollama pull gpt-oss:20b
+export AEGIS_OPENAI_API_KEY=ollama            # required by the client, ignored by Ollama
+export AEGIS_OPENAI_BASE_URL=http://localhost:11434/v1
+export AEGIS_OPENAI_MODEL=gpt-oss:20b
+aegis guarded --target openai --verbose
+```
+
+Or a hosted model with a real key (Groq):
+
+```bash
+export AEGIS_OPENAI_API_KEY=gsk_...           # console.groq.com -> API Keys
+export AEGIS_OPENAI_BASE_URL=https://api.groq.com/openai/v1
+export AEGIS_OPENAI_MODEL=openai/gpt-oss-120b
+aegis guarded --target openai --verbose
+```
+
+**Two cautions.** Never commit the key — AEGIS reads it from the environment and has no
+other path to it. And free tiers may use your traffic for training (Gemini's explicitly
+does), so do not point them at real data; AEGIS's payloads are synthetic, which is exactly
+why it is safe to run this way.
+
 ## Architecture
 
 ```
