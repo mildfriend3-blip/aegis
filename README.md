@@ -289,6 +289,13 @@ export AEGIS_OPENAI_MODEL=openai/gpt-oss-120b
 aegis guarded --target openai --verbose
 ```
 
+> **Windows (PowerShell):** `export` and `set` do **not** set environment variables here.
+> Use `$env:AEGIS_OPENAI_API_KEY="ollama"`, and activate the virtual environment with
+> `.\.venv\Scripts\Activate.ps1` — if scripts are blocked, run
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` first. The `(.venv)` prefix
+> on your prompt is how you know it worked. Without an activated environment the `aegis`
+> command is not on `PATH` and you get "not recognized".
+
 **Two cautions.** Never commit the key — AEGIS reads it from the environment and has no
 other path to it. And free tiers may use your traffic for training (Gemini's explicitly
 does), so do not point them at real data; AEGIS's payloads are synthetic, which is exactly
