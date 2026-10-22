@@ -260,12 +260,25 @@ point `AEGIS_OPENAI_BASE_URL` at it and name the model. These need no credit car
 Ollama needs no account at all — the key is a placeholder it ignores:
 
 ```bash
-ollama pull gpt-oss:20b
+ollama pull qwen3:8b                          # must be a tool-capable model — see below
 export AEGIS_OPENAI_API_KEY=ollama            # required by the client, ignored by Ollama
 export AEGIS_OPENAI_BASE_URL=http://localhost:11434/v1
-export AEGIS_OPENAI_MODEL=gpt-oss:20b
+export AEGIS_OPENAI_MODEL=qwen3:8b
 aegis guarded --target openai --verbose
 ```
+
+**The model must support tool calling, or the run means nothing.** Handing a `tools`
+array to a model without that capability does not raise an error — the model simply
+answers in prose, so it proposes zero tool calls and the guard looks like it blocked
+everything when in fact the model never acted. Check before you run:
+
+```bash
+curl -s http://localhost:11434/api/show -d '{"model": "qwen3:8b"}' | grep -A3 capabilities
+```
+
+If `tools` is in that list, you are good. Tool-capable picks: `qwen3:8b` (safe default),
+`llama3.1:8b` (most widely used), `llama3-groq-tool-use:8b` (purpose-built for it),
+`gpt-oss:20b` (needs ~16 GB). The full set is at `ollama.com/search?c=tools`.
 
 Or a hosted model with a real key (Groq):
 
