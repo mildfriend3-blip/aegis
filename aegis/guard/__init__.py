@@ -11,6 +11,8 @@ from .daemon import Autonomy, Guard, GuardConfig
 from .engine import Decision, GuardEngine
 from .events import Event
 from .incidents import Incident, IncidentLog
+from .agent import GuardedAgent
+from .client import HttpDecider, InProcessDecider, Verdict
 from .server import GuardServer
 from .shadow import ShadowReport, run_shadow
 from .simulate import live_stream
@@ -18,4 +20,5 @@ from .triage import triage
 
 __all__ = ["Autonomy", "Guard", "GuardConfig", "GuardEngine", "Decision", "Event",
            "Incident", "IncidentLog", "GuardServer", "ShadowReport", "run_shadow",
+           "GuardedAgent", "InProcessDecider", "HttpDecider", "Verdict",
            "live_stream", "triage"]

@@ -14,7 +14,7 @@ quantifies how often each attack achieves its forbidden effect (**Attack Success
 and measures how much each defensive layer reduces that rate — *and at what cost to
 legitimate utility*. It ships with a deterministic offline agent, a four-layer defense
 stack, 17 attacks across 9 categories, an adaptive attacker, an always-on guard, a CLI,
-and a 52-test suite.
+and a 59-test suite.
 
 ```
 $ aegis run
@@ -194,6 +194,33 @@ would be quarantined, a checkable sample of each decision, and the line that dec
 adoption — **legitimate sessions blocked**. On the built-in stream that is **0**, which
 is what makes enforcement safe to switch on.
 
+### A guarded agent — the loop closed
+
+`GuardedAgent` wraps any agent and puts the guard in its path: the instruction is checked
+at the door, every tool call is checked before it runs, and the answer is checked before
+it leaves. `aegis guarded` drives the whole attack catalogue through it and scores the
+effect end to end — the guard is the only thing between the model and the world.
+
+```bash
+aegis guarded                                # 17 attacks, in-process decider
+aegis guarded --adaptive                     # plus every mutation: 164 variants
+aegis guarded --url http://127.0.0.1:8765    # against a guard running as a service
+```
+
+```
+AEGIS guarded agent - 164 attack variants, decider: in-process
+  effects achieved:     0   <- a variant succeeded only if its forbidden effect was recorded
+  prompts refused:      58
+  tool calls proposed:  262
+  tool calls blocked:   77
+  residual:             none - the guard held
+```
+
+Zero. Not because the model resisted — it did not; it proposed 262 calls and answered
+freely — but because those calls and answers never reached the world. The same run against
+a guard served over HTTP gives 0/17. The decider is the deployment switch: `in-process`
+for one process, `HttpDecider` when the guard is a service.
+
 ## Architecture
 
 ```
@@ -289,14 +316,14 @@ aegis/
     attacks/      attack catalogue (17 cases) + adaptive mutation operators
     defenses/     four composable layers (+ a hardened output filter)
     adaptive.py   the adaptive attacker: searches the mutation space for bypasses
-    guard/        the always-on defensive agent (events, engine, daemon,
-                  triage, HTTP server, shadow report)
+    guard/        the always-on defensive agent (events, engine, daemon, triage,
+                  HTTP server, shadow report, guarded agent)
     world.py      simulated environment; records the effects success is scored on
     harness.py    the evaluation loop
     metrics.py    ASR / utility aggregation
     report.py     Markdown + JSON report generation
     cli.py        command-line entry point
-  tests/          52 tests
+  tests/          59 tests
   docs/           technical writeup (PDF) + its build script
   results/        generated benchmark output
 ```

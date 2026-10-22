@@ -65,6 +65,56 @@ def _read_log(path: str):
                 yield Event.from_dict(json.loads(line))
 
 
+def _run_guarded(args) -> int:
+    """The loop closed: attacks run through a guard-wrapped agent, scored end to end."""
+    from .attacks import BENIGN_DOCS, BENIGN_TASK
+    from .guard.agent import GuardedAgent
+    from .guard.client import HttpDecider, InProcessDecider
+    from .harness import build_inputs, evaluate
+    from .world import World
+
+    decider = HttpDecider(args.url, args.token) if args.url else InProcessDecider()
+    attacks = _select_attacks(args.attacks)
+
+    variants = []
+    for attack in attacks:
+        variants.append(attack)
+        if args.adaptive:
+            from .attacks.mutations import mutations_for
+            variants += [v for _tag, v in mutations_for(attack)]
+
+    achieved = refused = proposed = blocked = 0
+    residuals = []
+    for variant in variants:
+        world = World()
+        agent = GuardedAgent(decider=decider, session=f"sess-{variant.id}"[:40])
+        task, docs = build_inputs(variant, BENIGN_TASK, BENIGN_DOCS)
+        run = agent.run(task, docs)
+        refused += int(agent.refused_prompt)
+        proposed += agent.proposed_calls
+        blocked += agent.blocked_calls
+        for call in run.tool_calls:
+            world.execute(call)
+        if evaluate(variant.objective, world, run.final_response):
+            achieved += 1
+            residuals.append((variant.id, variant.objective))
+
+    where = f"HTTP {args.url}" if args.url else "in-process"
+    print(f"AEGIS guarded agent - {len(variants)} attack variants, decider: {where}")
+    print(f"  effects achieved:     {achieved}   "
+          f"<- a variant succeeded only if its forbidden effect was recorded")
+    print(f"  prompts refused:      {refused}")
+    print(f"  tool calls proposed:  {proposed}")
+    print(f"  tool calls blocked:   {blocked}")
+    if residuals:
+        print("  residual (the guard has a hole):")
+        for rid, objective in residuals:
+            print(f"    {rid}  ({objective})")
+    else:
+        print("  residual:             none - the guard held")
+    return 0
+
+
 def _run_guard(args) -> int:
     import json
 
@@ -161,6 +211,13 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--token", default=None,
                    help="shared secret required in the X-AEGIS-Token header")
 
+    gd = sub.add_parser("guarded", help="run attacks through a guard-wrapped agent (end to end)")
+    gd.add_argument("--attacks", default="all")
+    gd.add_argument("--adaptive", action="store_true",
+                    help="also run every adaptive mutation through the guarded agent")
+    gd.add_argument("--url", default=None, help="a running guard's URL; omit for in-process")
+    gd.add_argument("--token", default=None)
+
     args = parser.parse_args(argv)
 
     if args.cmd == "list":
@@ -181,6 +238,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "guard":
         return _run_guard(args)
+
+    if args.cmd == "guarded":
+        return _run_guarded(args)
 
 
     defenses = [d.strip() for d in args.defenses.split(",") if d.strip()]
