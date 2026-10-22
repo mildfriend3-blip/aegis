@@ -114,6 +114,8 @@ aegis run --defenses none,tool-policy,full --out results
 pytest -q                  # 22 tests
 ```
 
+> **If `aegis` or `pytest` is not found after install**, pip placed the launcher scripts in a folder that is not on your `PATH` (the install prints a warning naming it, e.g. `...\AppData\Roaming\Python\Python312\Scripts`). Two fixes: run the module form — `python -m aegis.cli run` and `python -m pytest -q` — or add that folder to `PATH`. Installing into a virtual environment (`python -m venv .venv`, then activate it) avoids the problem entirely.
+
 Run it against a **real** model (offline by default; needs an OpenAI-compatible endpoint):
 
 ```bash
