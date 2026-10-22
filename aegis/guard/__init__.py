@@ -11,8 +11,11 @@ from .daemon import Autonomy, Guard, GuardConfig
 from .engine import Decision, GuardEngine
 from .events import Event
 from .incidents import Incident, IncidentLog
+from .server import GuardServer
+from .shadow import ShadowReport, run_shadow
 from .simulate import live_stream
 from .triage import triage
 
 __all__ = ["Autonomy", "Guard", "GuardConfig", "GuardEngine", "Decision", "Event",
-           "Incident", "IncidentLog", "live_stream", "triage"]
+           "Incident", "IncidentLog", "GuardServer", "ShadowReport", "run_shadow",
+           "live_stream", "triage"]

@@ -107,6 +107,22 @@ def test_live_stream_holds_the_line_and_spares_benign_traffic():
     assert summary["quarantined_sessions"]
 
 
+# --- shadow mode --------------------------------------------------------
+def test_shadow_flags_attacks_and_spares_benign_traffic():
+    from aegis.guard.shadow import run_shadow
+    rep = run_shadow(live_stream())
+    assert rep.would_block > 0
+    assert rep.legitimate_sessions_blocked == []      # no false positives
+    assert rep.would_quarantine                        # repeat offenders flagged
+
+
+def test_shadow_report_states_the_verdict():
+    from aegis.guard.shadow import markdown, run_shadow
+    md = markdown(run_shadow(live_stream()))
+    assert "Legitimate sessions blocked" in md
+    assert "safe to switch on" in md
+
+
 # --- triage -------------------------------------------------------------
 def test_triage_falls_back_when_the_model_fails():
     inc = Incident(source="s", kind="tool_call", action="blocked", severity="high",

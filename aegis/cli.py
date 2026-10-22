@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from . import adaptive, guard, report
@@ -53,11 +54,39 @@ def _tail(path: str):
                 yield Event.from_dict(json.loads(line))
 
 
+def _read_log(path: str):
+    """Read a finite event log to EOF (used by shadow mode)."""
+    import json
+
+    from .guard import Event
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            if line.strip():
+                yield Event.from_dict(json.loads(line))
+
+
 def _run_guard(args) -> int:
     import json
 
     from .guard import Autonomy, Event, Guard, GuardConfig, live_stream
 
+    # -- network mode: serve the guard over HTTP -------------------------
+    if args.serve:
+        from .guard.server import GuardServer
+        g = Guard(GuardConfig(autonomy=Autonomy(args.autonomy), incidents_path=args.incidents))
+        srv = GuardServer(g, host=args.host, port=args.port, token=args.token)
+        print(f"AEGIS guard listening on http://{srv.host}:{srv.port} | autonomy={args.autonomy}")
+        print("  POST /event   GET /health   GET /metrics   GET /incidents")
+        try:
+            srv.serve_forever()
+        except KeyboardInterrupt:
+            print("\n  [guard] stand-down requested - disengaging")
+        finally:
+            srv.shutdown()
+        print("  final:", g.summary())
+        return 0
+
+    # -- pick the event source -------------------------------------------
     if args.simulate or not args.watch:
         events = live_stream(include_adaptive=args.adaptive)
         source = "built-in live stream"
@@ -65,9 +94,19 @@ def _run_guard(args) -> int:
         events = (Event.from_dict(json.loads(line)) for line in sys.stdin if line.strip())
         source = "stdin"
     else:
-        events = _tail(args.watch)
+        events = _read_log(args.watch) if args.shadow else _tail(args.watch)
         source = args.watch
 
+    # -- shadow mode: report what it would have done ----------------------
+    if args.shadow:
+        from .guard.shadow import markdown, run_shadow, write_report
+        report_ = run_shadow(events)
+        write_report(report_, args.shadow_out)
+        print(markdown(report_))
+        print(f"\nWrote {args.shadow_out}")
+        return 0
+
+    # -- live enforcement -------------------------------------------------
     cfg = GuardConfig(autonomy=Autonomy(args.autonomy), incidents_path=args.incidents)
     g = Guard(cfg)
     print(f"AEGIS guard - {source} | autonomy={args.autonomy} | incidents -> {args.incidents}")
@@ -112,6 +151,15 @@ def main(argv: list[str] | None = None) -> int:
     g.add_argument("--max-events", type=int, default=None)
     g.add_argument("--incidents", default="results/incidents.jsonl")
     g.add_argument("--quiet", action="store_true")
+    g.add_argument("--shadow", action="store_true",
+                   help="report what the guard would have blocked, without acting")
+    g.add_argument("--shadow-out", default="results/shadow-report.md")
+    g.add_argument("--serve", action="store_true",
+                   help="serve the guard over HTTP for an inline agent to call")
+    g.add_argument("--host", default="127.0.0.1")
+    g.add_argument("--port", type=int, default=8765)
+    g.add_argument("--token", default=None,
+                   help="shared secret required in the X-AEGIS-Token header")
 
     args = parser.parse_args(argv)
 
@@ -133,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "guard":
         return _run_guard(args)
+
 
     defenses = [d.strip() for d in args.defenses.split(",") if d.strip()]
     attacks = _select_attacks(args.attacks)

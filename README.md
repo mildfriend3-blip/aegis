@@ -14,7 +14,7 @@ quantifies how often each attack achieves its forbidden effect (**Attack Success
 and measures how much each defensive layer reduces that rate — *and at what cost to
 legitimate utility*. It ships with a deterministic offline agent, a four-layer defense
 stack, 17 attacks across 9 categories, an adaptive attacker, an always-on guard, a CLI,
-and a 44-test suite.
+and a 52-test suite.
 
 ```
 $ aegis run
@@ -152,6 +152,48 @@ instructions, actions and answers. It is not a network firewall, and it does not
 a server against memory corruption, misconfiguration or stolen credentials. Those are
 different tools. Claiming otherwise is how a good project gets dismissed.
 
+### Put it in front of a real agent (HTTP)
+
+`aegis guard --serve` exposes the guard as an inline endpoint. The caller POSTs an event
+and **holds the action** until the guard answers — `allowed: false` means *do not perform
+it*.
+
+```bash
+aegis guard --serve --port 8765 --token $AEGIS_TOKEN
+```
+
+| Route | Purpose |
+|---|---|
+| `POST /event` | evaluate one event; returns `{decision, allowed, layer, reason}` |
+| `GET /health` | liveness — the "still standing" signal for a supervisor |
+| `GET /metrics` | counters: events, allowed, blocked, quarantined sessions |
+| `GET /incidents` | the recent audit trail |
+
+```
+  prompt     blocked    allowed=False sanitizer    inbound instruction carried an injection signature
+  tool_call  blocked    allowed=False tool-policy  recipient domain 'evil.example' not allow-listed
+  tool_call  allowed    allowed=True  -            no policy violation
+  tool_call  blocked    allowed=False quarantine   session 'agent-7' cut off after 3 policy violations
+```
+
+Binds to loopback by default; set `--token` and send it as `X-AEGIS-Token` if you
+expose it. stdlib only — no framework.
+
+### Shadow mode: read it before you trust it
+
+Nobody points an autonomous blocker at production on day one. `--shadow` replays a log
+and reports what enforcement *would* do, without acting:
+
+```bash
+aegis guard --simulate --shadow               # over the built-in stream
+aegis guard --watch events.jsonl --shadow     # over a real log
+```
+
+It writes `results/shadow-report.md`: blocks by layer and severity, the sessions that
+would be quarantined, a checkable sample of each decision, and the line that decides
+adoption — **legitimate sessions blocked**. On the built-in stream that is **0**, which
+is what makes enforcement safe to switch on.
+
 ## Architecture
 
 ```
@@ -247,13 +289,14 @@ aegis/
     attacks/      attack catalogue (17 cases) + adaptive mutation operators
     defenses/     four composable layers (+ a hardened output filter)
     adaptive.py   the adaptive attacker: searches the mutation space for bypasses
-    guard/        the always-on defensive agent (events, engine, daemon, triage)
+    guard/        the always-on defensive agent (events, engine, daemon,
+                  triage, HTTP server, shadow report)
     world.py      simulated environment; records the effects success is scored on
     harness.py    the evaluation loop
     metrics.py    ASR / utility aggregation
     report.py     Markdown + JSON report generation
     cli.py        command-line entry point
-  tests/          44 tests
+  tests/          52 tests
   docs/           technical writeup (PDF) + its build script
   results/        generated benchmark output
 ```
