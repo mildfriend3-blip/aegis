@@ -14,7 +14,7 @@ quantifies how often each attack achieves its forbidden effect (**Attack Success
 and measures how much each defensive layer reduces that rate — *and at what cost to
 legitimate utility*. It ships with a deterministic offline agent, a four-layer defense
 stack, 17 attacks across 9 categories, an adaptive attacker, an always-on guard, a CLI,
-and a 59-test suite.
+and a 61-test suite.
 
 ```
 $ aegis run
@@ -221,6 +221,29 @@ freely — but because those calls and answers never reached the world. The same
 a guard served over HTTP gives 0/17. The decider is the deployment switch: `in-process`
 for one process, `HttpDecider` when the guard is a service.
 
+### Running against a real model
+
+The guarded path works with any agent, including the live-model adapter. The default is
+the deterministic offline agent, because that is what makes every number here
+reproducible; the live model is for validating that the offline numbers track reality.
+
+```bash
+export AEGIS_OPENAI_API_KEY=sk-...          # your key; read from the environment only
+export AEGIS_OPENAI_MODEL=gpt-4o-mini       # optional
+aegis guarded --target openai --verbose     # the catalogue, through a guarded live model
+```
+
+The guard sits in the same place it always does: the model's tool calls and answer pass
+through it before anything happens. The key is read from the environment and nowhere else
+-- there is no code path that accepts a hard-coded credential, and the CLI refuses to
+start without it rather than failing halfway.
+
+**Not run in this repository.** Every published number is from the deterministic offline
+agent, so CI reproduces them with no key and no network. A live-model run is a
+*validation*, and its numbers will differ from the simulation: a real model proposes
+different calls, and may refuse some attacks on its own. Run it and record what you get;
+do not assume the offline numbers transfer.
+
 ## Architecture
 
 ```
@@ -323,7 +346,7 @@ aegis/
     metrics.py    ASR / utility aggregation
     report.py     Markdown + JSON report generation
     cli.py        command-line entry point
-  tests/          59 tests
+  tests/          61 tests
   docs/           technical writeup (PDF) + its build script
   results/        generated benchmark output
 ```

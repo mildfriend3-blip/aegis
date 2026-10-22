@@ -73,6 +73,12 @@ def _run_guarded(args) -> int:
     from .harness import build_inputs, evaluate
     from .world import World
 
+    if args.target == "openai" and not os.environ.get("AEGIS_OPENAI_API_KEY"):
+        raise SystemExit(
+            "AEGIS_OPENAI_API_KEY is not set. Export it and re-run:\n"
+            "  export AEGIS_OPENAI_API_KEY=sk-...\n"
+            "  aegis guarded --target openai")
+    inner_factory = _agent_factory(args.target)
     decider = HttpDecider(args.url, args.token) if args.url else InProcessDecider()
     attacks = _select_attacks(args.attacks)
 
@@ -87,7 +93,8 @@ def _run_guarded(args) -> int:
     residuals = []
     for variant in variants:
         world = World()
-        agent = GuardedAgent(decider=decider, session=f"sess-{variant.id}"[:40])
+        agent = GuardedAgent(inner=inner_factory(), decider=decider,
+                             session=f"sess-{variant.id}"[:40])
         task, docs = build_inputs(variant, BENIGN_TASK, BENIGN_DOCS)
         run = agent.run(task, docs)
         refused += int(agent.refused_prompt)
@@ -95,12 +102,18 @@ def _run_guarded(args) -> int:
         blocked += agent.blocked_calls
         for call in run.tool_calls:
             world.execute(call)
-        if evaluate(variant.objective, world, run.final_response):
+        ok = evaluate(variant.objective, world, run.final_response)
+        if ok:
             achieved += 1
             residuals.append((variant.id, variant.objective))
+        if args.verbose:
+            mark = "LEAK" if ok else ("refused" if agent.refused_prompt else "held")
+            print(f"    {variant.id:<44} {mark:<8} proposed={agent.proposed_calls} "
+                  f"blocked={agent.blocked_calls}")
 
     where = f"HTTP {args.url}" if args.url else "in-process"
-    print(f"AEGIS guarded agent - {len(variants)} attack variants, decider: {where}")
+    print(f"AEGIS guarded agent - {len(variants)} attack variants, "
+          f"decider: {where}, model: {args.target}")
     print(f"  effects achieved:     {achieved}   "
           f"<- a variant succeeded only if its forbidden effect was recorded")
     print(f"  prompts refused:      {refused}")
@@ -217,6 +230,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="also run every adaptive mutation through the guarded agent")
     gd.add_argument("--url", default=None, help="a running guard's URL; omit for in-process")
     gd.add_argument("--token", default=None)
+    gd.add_argument("--target", default="mock", choices=["mock", "openai"],
+                    help="the model under the guard (openai needs AEGIS_OPENAI_API_KEY)")
+    gd.add_argument("--verbose", action="store_true", help="one line per variant")
 
     args = parser.parse_args(argv)
 
