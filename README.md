@@ -361,6 +361,20 @@ prevents the effect — success is defined at the level of *impact*, not vibes.
 
 ## Quickstart
 
+**Windows — one command.** This fetches the current code, builds the virtual
+environment, installs AEGIS, checks that Ollama is running with a tool-capable model,
+and runs the guarded benchmark against it. Paste both lines:
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+irm https://raw.githubusercontent.com/mildfriend3-blip/aegis/main/setup.ps1 | iex
+```
+
+Use a different local model with `aegis\setup.ps1 -Model llama3.1:8b`. It needs no API
+key and installs nothing outside the folder.
+
+**Any platform:**
+
 ```bash
 git clone <your-repo-url> && cd aegis
 pip install -e ".[dev]"
