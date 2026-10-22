@@ -22,3 +22,4 @@ htmlcov/
 
 # Generated benchmark output (regenerate with `aegis run`)
 results/*.json
+results/*.jsonl

@@ -13,7 +13,8 @@ AEGIS runs a catalogue of realistic prompt-injection attacks against a tool-usin
 quantifies how often each attack achieves its forbidden effect (**Attack Success Rate**),
 and measures how much each defensive layer reduces that rate — *and at what cost to
 legitimate utility*. It ships with a deterministic offline agent, a four-layer defense
-stack, 17 attacks across 9 categories, an adaptive attacker, a CLI, and a 32-test suite.
+stack, 17 attacks across 9 categories, an adaptive attacker, an always-on guard, a CLI,
+and a 44-test suite.
 
 ```
 $ aegis run
@@ -102,6 +103,55 @@ so far.
 aegis adaptive --defenses none,full,hardened
 ```
 
+## The guard — an always-on defensive agent
+
+`aegis guard` turns the defence layers into a running defender. It watches an agent's
+traffic — inbound instructions, outbound tool calls and answers — applies the hardened
+stack to each event, and acts on its own.
+
+```bash
+aegis guard --simulate                          # run over a built-in live attack stream
+aegis guard --watch events.jsonl --autonomy enforce
+```
+
+Three kinds of event, matching the three places a defence can act:
+
+| Event | Layer applied | What a block means |
+|---|---|---|
+| `prompt` | input sanitizer | the instruction carried an injection signature |
+| `tool_call` | tool-call policy | the action breaks policy, whatever the model believed |
+| `response` | output filter | the answer revealed the secret, in any encoding |
+
+**Autonomy is the safety design.** `observe` records everything and acts on nothing
+(shadow mode — run this first), `recommend` records and alerts but never blocks, and
+`enforce` blocks. A session that trips the policy repeatedly is **quarantined** — cut off
+— and every decision goes to a JSONL audit trail. The guard takes a kill switch
+(`SIGTERM`, or a stop-file) and stands down with a final report.
+
+**Where the LLM fits.** The model does *analyst triage* — it explains and prioritises an
+incident in one line. It never decides whether to block. That decision belongs to the
+policy engine, because a model that reads attacker-controlled text can be talked out of
+a decision and a policy cannot. Triage falls back to a deterministic summary when no
+model is reachable, so the guard never depends on one.
+
+On the built-in stream it stops every attack session and spares the benign traffic:
+
+```
+  [BLOCK] sess-direct_read_exfil   sanitizer     inbound instruction carried an injection signature
+  [BLOCK] sess-direct_read_exfil   tool-policy   recipient domain 'evil.example' not allow-listed
+  [BLOCK] sess-http_exfil          tool-policy   host 'attacker.evil.example' not allow-listed
+  [BLOCK] sess-sql_override        tool-policy   destructive SQL statement
+  [BLOCK] sess-direct_as_ai        quarantine    session cut off after 3 policy violations
+```
+
+Its enforcement *is* the hardened stack, so its measured bypass rate is the hardened
+config's — the guard does not get to be better than its own benchmark.
+
+**Scope, stated plainly:** this defends the **LLM/agent layer** — the model's
+instructions, actions and answers. It is not a network firewall, and it does not defend
+a server against memory corruption, misconfiguration or stolen credentials. Those are
+different tools. Claiming otherwise is how a good project gets dismissed.
+
 ## Architecture
 
 ```
@@ -141,7 +191,10 @@ pip install -e ".[dev]"
 aegis list                 # show attacks and defence configs
 aegis run                  # full benchmark -> prints tables, writes results/
 aegis run --defenses none,tool-policy,full --out results
-pytest -q                  # 32 tests
+pytest -q                  # 44 tests
+
+aegis adaptive --defenses none,full,hardened   # search for bypasses
+aegis guard --simulate                         # run the always-on defender
 ```
 
 > **If `aegis` or `pytest` is not found after install**, pip placed the launcher scripts in a folder that is not on your `PATH` (the install prints a warning naming it, e.g. `...\AppData\Roaming\Python\Python312\Scripts`). Two fixes: run the module form — `python -m aegis.cli run` and `python -m pytest -q` — or add that folder to `PATH`. Installing into a virtual environment (`python -m venv .venv`, then activate it) avoids the problem entirely.
@@ -194,12 +247,13 @@ aegis/
     attacks/      attack catalogue (17 cases) + adaptive mutation operators
     defenses/     four composable layers (+ a hardened output filter)
     adaptive.py   the adaptive attacker: searches the mutation space for bypasses
+    guard/        the always-on defensive agent (events, engine, daemon, triage)
     world.py      simulated environment; records the effects success is scored on
     harness.py    the evaluation loop
     metrics.py    ASR / utility aggregation
     report.py     Markdown + JSON report generation
     cli.py        command-line entry point
-  tests/          32 tests
+  tests/          44 tests
   docs/           technical writeup (PDF) + its build script
   results/        generated benchmark output
 ```

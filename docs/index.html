@@ -82,7 +82,8 @@
     <div>
       <h2>What it is</h2>
       <p class="muted">An LLM agent that can call tools turns a prompt injection from a party trick into a remote-execution class bug for natural language. A payload hidden in a document the agent is asked to summarise can redirect its email, HTTP or SQL calls.</p>
-      <p class="muted">AEGIS scores 17 attacks across 9 categories against a tool-using agent, and reports two numbers for every defence: the <b>attack success rate</b> it leaves, and the <b>legitimate-task utility</b> it preserves. An undefended agent falls to every attack; a four-layer stack drives that to zero with no loss of utility.</p>
+      <p class="muted">AEGIS scores 17 attacks across 9 categories against a tool-using agent, and reports two numbers for every defence: the <b>attack success rate</b> it leaves, and the <b>legitimate-task utility</b> it preserves. An undefended agent falls to every attack; a four-layer stack drives that to zero with no loss of utility — and an <b>adaptive attacker</b> that searches for bypasses still gets through 17.6% of the time until the stack is hardened.</p>
+      <p class="muted"><b>aegis guard</b> turns those layers into a running defender: it watches an agent's instructions, tool calls and answers, blocks what breaks policy, quarantines a repeat offender, and writes an audit trail — with the LLM doing analyst triage, never the blocking decision.</p>
     </div>
     <div>
       <h2>Run it</h2>
@@ -111,7 +112,7 @@
     </a>
     <a class="card" href="https://github.com/mildfriend3-blip/aegis">
       <div class="t">The source</div>
-      <div class="s">The framework, the attack catalogue, the four defences, an adaptive attacker and a 32-test suite — MIT licensed.</div>
+      <div class="s">The framework, the attack catalogue, the four defences, an adaptive attacker, an always-on guard and a 44-test suite — MIT licensed.</div>
       <div class="go">View on GitHub →</div>
     </a>
   </div>

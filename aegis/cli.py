@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import adaptive, report
+from . import adaptive, guard, report
 from .attacks import ATTACKS
 from .defenses import DEFENSE_CONFIGS
 from .harness import run_suite
@@ -36,6 +36,48 @@ def _select_attacks(spec: str):
     return chosen
 
 
+def _tail(path: str):
+    """Follow a JSONL file, like tail -f. This is what a guard does on a live
+    host: it never returns."""
+    import json
+    import time
+
+    from .guard import Event
+    with open(path, "r", encoding="utf-8") as fh:
+        while True:
+            line = fh.readline()
+            if not line:
+                time.sleep(0.2)
+                continue
+            if line.strip():
+                yield Event.from_dict(json.loads(line))
+
+
+def _run_guard(args) -> int:
+    import json
+
+    from .guard import Autonomy, Event, Guard, GuardConfig, live_stream
+
+    if args.simulate or not args.watch:
+        events = live_stream(include_adaptive=args.adaptive)
+        source = "built-in live stream"
+    elif args.watch == "-":
+        events = (Event.from_dict(json.loads(line)) for line in sys.stdin if line.strip())
+        source = "stdin"
+    else:
+        events = _tail(args.watch)
+        source = args.watch
+
+    cfg = GuardConfig(autonomy=Autonomy(args.autonomy), incidents_path=args.incidents)
+    g = Guard(cfg)
+    print(f"AEGIS guard - {source} | autonomy={args.autonomy} | incidents -> {args.incidents}")
+    summary = g.run(events, max_events=args.max_events, quiet=args.quiet)
+    print("\n--- guard summary ---")
+    for key, value in summary.items():
+        print(f"  {key}: {value}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="aegis", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -58,6 +100,19 @@ def main(argv: list[str] | None = None) -> int:
                     help="'all', or comma-separated attack ids/categories")
     ad.add_argument("--out", default="results", help="output directory")
 
+    g = sub.add_parser("guard", help="run the always-on defensive guard")
+    g.add_argument("--simulate", action="store_true",
+                   help="run over a built-in live attack stream")
+    g.add_argument("--watch", default=None,
+                   help="watch a JSONL event file, or '-' for stdin")
+    g.add_argument("--adaptive", action="store_true",
+                   help="include adaptive mutations in the simulated stream")
+    g.add_argument("--autonomy", default="enforce",
+                   choices=["observe", "recommend", "enforce"])
+    g.add_argument("--max-events", type=int, default=None)
+    g.add_argument("--incidents", default="results/incidents.jsonl")
+    g.add_argument("--quiet", action="store_true")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "list":
@@ -75,6 +130,9 @@ def main(argv: list[str] | None = None) -> int:
         print(adaptive.markdown(recs))
         print(f"\nWrote {info['markdown']} and {info['json']}")
         return 0
+
+    if args.cmd == "guard":
+        return _run_guard(args)
 
     defenses = [d.strip() for d in args.defenses.split(",") if d.strip()]
     attacks = _select_attacks(args.attacks)
