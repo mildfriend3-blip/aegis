@@ -161,9 +161,17 @@ def build():
         "filter closes it back to <b>0%</b>.", body))
     S.append(P(
         "The contribution is a reproducible harness: a deterministic offline agent, an effect-level definition "
-        "of attack success, four composable defence layers, an adaptive attacker, a 32-test suite, and a CLI "
-        "that regenerates every "
-        "number in this report.", body))
+        "of attack success, four composable defence layers, an adaptive attacker, a 64-test suite, and a CLI "
+        "that regenerates every number in this report.", body))
+    S.append(P(
+        "The layers are then promoted from a benchmark into a running defender. <b>aegis guard</b> watches an "
+        "agent's instructions, tool calls and answers, applies the hardened stack to each, and acts on its own "
+        "- with an autonomy ladder (observe, recommend, enforce), session quarantine, a JSONL audit trail and a "
+        "kill switch. <b>GuardedAgent</b> puts the guard in the agent's own path, so a compromised model's calls "
+        "never reach the world: <b>0</b> effects achieved across 164 attack variants, where the model proposed "
+        "262 calls and the guard refused 77. On a live model (Gemini 2.5 Flash) the same run records <b>0</b> "
+        "effects achieved, and the mechanism is the honest part - the model resisted most injections by itself, "
+        "which is precisely why the guard is the layer that matters.", body))
 
     # ---- threat model
     S.append(P("Threat model", h1))
@@ -281,6 +289,58 @@ def build():
         "HTTP - and the hardened, decoding output filter closes the leak. The lesson is the method, not the "
         "number: a defence is only as good as the attacker it was tested against.", body))
 
+    # ---- the guard
+    S.append(P("From measurement to defence: the guard", h1))
+    S.append(P(
+        "A benchmark that only measures is half a tool. The same four layers are promoted into a running "
+        "defender - <b>aegis guard</b> - which watches three kinds of event, matching the three places a defence "
+        "can act. Because enforcement reuses the hardened stack, the guard cannot be better than its own "
+        "benchmark: its measured bypass rate is the hardened config's.", body))
+    S.append(data_table(
+        ["Event", "Layer applied", "What a block means"],
+        [["prompt", "input sanitizer", "the instruction carried an injection signature"],
+         ["tool_call", "tool-call policy", "the action breaks policy, whatever the model believed"],
+         ["response", "output filter", "the answer revealed the secret, in any encoding"]],
+        [0.18, 0.26, 0.56], cw))
+    S.append(Spacer(1, 8))
+    S.append(P(
+        "Autonomy is the safety design, not a nicety. <b>observe</b> records everything and acts on nothing "
+        "(shadow mode); <b>recommend</b> records and alerts but never blocks; <b>enforce</b> blocks and cuts off "
+        "a repeat offender. Every decision goes to a JSONL audit trail, and the guard takes a kill switch. The "
+        "LLM's role is <b>analyst triage</b> - it explains and prioritises an incident in one line, and never "
+        "decides whether to block, because a model that reads attacker-controlled text can be talked out of a "
+        "decision and a policy cannot. Triage falls back to a deterministic summary when no model is reachable.", body))
+    S.append(P(
+        "<b>Shadow mode</b> is how such a control earns adoption: replay a log and report what enforcement would "
+        "do, without doing it. On the built-in stream the guard would block 29 of 85 events across 17 sessions "
+        "and quarantine two - and the line that decides adoption, <b>legitimate sessions blocked</b>, is <b>0</b>. "
+        "It is also exposed as an HTTP endpoint (<b>POST /event</b>, inline: <i>allowed: false</i> means do not "
+        "perform it) with <i>/health</i>, <i>/metrics</i> and <i>/incidents</i>.", body))
+
+    # ---- real-model validation
+    S.append(P("Real-model validation", h1))
+    S.append(P(
+        "The guarded path also runs against a live model through its OpenAI-compatible endpoint. Against "
+        "<b>Gemini 2.5 Flash</b>, on 22 October 2026, on the free tier:", body))
+    S.append(data_table(
+        ["Metric", "Value"],
+        [["Attack variants", "17"],
+         ["Effects achieved", "0"],
+         ["Prompts refused by the guard", "9"],
+         ["Tool calls proposed by the model", "7"],
+         ["Tool calls blocked by the guard", "1"]],
+        [0.7, 0.3], cw, align_center_from=1))
+    S.append(Spacer(1, 8))
+    S.append(P(
+        "Zero effects achieved - but the mechanism differs from the simulation, and that is the finding. The "
+        "offline agent is deliberately gullible: it follows every injected instruction, so in the simulation the "
+        "guard does all the work. A real model refused most injections on its own, proposing only 7 tool calls "
+        "where the mock proposes 22; the guard blocked one of them, a destructive SQL statement the model did "
+        "propose. The honest conclusion is not that the model is safe. It is that <b>the guard is the part that "
+        "does not depend on the model's mood</b> - a backstop against a model that resists, and the only thing "
+        "between the injection and the effect against one that complies. The simulation measures that second "
+        "case, which is why it is the right thing to benchmark against.", body))
+
     # ---- findings
     S.append(P("Findings", h1))
     S.append(P(
@@ -306,6 +366,12 @@ def build():
         "full stack falls to 17.6% - all of it response leakage defeated by encoding - and only the hardened, "
         "decoding output filter restores zero. The benchmark's real contribution is the method: test the "
         "defence against an attacker who searches.", body))
+    S.append(P(
+        "6. The defence survives being run for real. Promoting the layers into a guard that sits in the agent's "
+        "path - and running it against both the gullible simulation and a live model - records zero effects "
+        "achieved in both cases. What changes is who does the work: in the simulation the guard blocks "
+        "everything; on a live model the model resists most attacks and the guard covers the rest. A defence "
+        "whose value depends on the model resisting is not a defence; this one does not.", body))
 
     # ---- limitations
     S.append(P("Limitations", h1))
@@ -329,9 +395,9 @@ def build():
     S.append(P("Reproducibility", h1))
     S.append(P(
         "Every figure in this report is regenerated by one command. The repository ships the agent, the "
-        "attack catalogue, the four defence layers, the adaptive attacker, the CLI, and a 32-test suite; "
-        "the offline agent needs no network and no API key.", body))
-    S.append(P("pip install -e \".[dev]\"   |   aegis run   |   pytest -q", small))
+        "attack catalogue, the four defence layers, the adaptive attacker, the guard, the guarded agent, the "
+        "CLI, and a 64-test suite; the offline agent needs no network and no API key.", body))
+    S.append(P("pip install -e \".[dev]\"   |   aegis run   |   aegis adaptive   |   aegis guard --simulate   |   pytest -q", small))
 
     doc.build(S, onFirstPage=hf, onLaterPages=hf)
     print("wrote", OUT)
